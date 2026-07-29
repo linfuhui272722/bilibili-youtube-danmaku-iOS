@@ -64,7 +64,6 @@ workflows:
           # Ensure THEOS is set for this script context
           export THEOS="$HOME/theos"
           
-          # 修复：必须添加方括号 [ ]
           if [ ! -d "$THEOS" ]; then
             echo "Cloning Theos to $THEOS ..."
             git clone --recursive https://github.com/theos/theos.git "$THEOS"
@@ -92,7 +91,6 @@ workflows:
           
           mkdir -p "$SDK_DIR"
 
-          # 修复：必须添加方括号 [ ]
           if [ -d "$SDK_DIR/$SDK_NAME" ]; then
             echo "✅ SDK $SDK_NAME 已存在，跳过下载。"
             rm -rf "$TEMP_DIR"
@@ -140,8 +138,7 @@ workflows:
           
           # Verify installation
           if command -v ldid &> /dev/null; then
-            echo "✅ ldid installed successfully:"
-            ldid -v
+            echo "✅ ldid installed successfully"
           else
             echo "❌ Failed to install ldid"
             exit 1
@@ -179,7 +176,6 @@ workflows:
           mkdir -p "$CM_BUILD_DIR/artifacts"
           cd "$CM_BUILD_DIR"
           for deb in packages/*.deb; do
-            # 修复：必须添加方括号 [ ]
             if [ -f "$deb" ]; then
               cp "$deb" artifacts/
               echo "Collected: $deb"
