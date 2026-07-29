@@ -1,5 +1,5 @@
 # B2Y Danmaku (iOS)
-
+它并不能工作，这是失败的尝试，但我还是想聊一下
 > Sync Bilibili 弹幕 onto the YouTube iOS app — a jailbreak tweak port of the [bilibili-youtube-danmaku](https://github.com/ahaduoduoduo/bilibili-youtube-danmaku) browser extension.
 
 This is the **iOS jailbreak** port. It hooks the native YouTube app (`com.google.ios.youtube`) using [Theos](https://theos.dev) + [Logos](https://theos.dev/docs/logos-syntax), fetches the matching Bilibili web danmaku stream, and overlays it on top of the YouTube player.
