@@ -16,8 +16,8 @@
 // Endpoints (identical to the browser extension).
 static NSString *const kSearchAllURL   = @"https://api.bilibili.com/x/web-interface/wbi/search/all/v2";
 static NSString *const kViewURL         = @"https://api.bilibili.com/x/web-interface/view";
-static NSString *const kSegmentURL       = @"https://api.bilibili.com/x/v2/dm/wbi/web/seg.so";
-static NSString *const kNavURL           = @"https://api.bilibili.com/x/web-interface/nav";
+static NSString *const kSegmentURL      = @"https://api.bilibili.com/x/v2/dm/wbi/web/seg.so";
+static NSString *const kNavURL          = @"https://api.bilibili.com/x/web-interface/nav";
 
 // Segment length: 6 minutes (360 seconds), per Bilibili's convention.
 static const NSTimeInterval kSegmentDuration = 360.0;
@@ -358,6 +358,7 @@ static const NSTimeInterval kSegmentFetchDelay = 0.3;
 }
 
 // Synchronous video info fetch (called from self.queue).
+// 修复了 block 捕获 autoreleasing out-parameter 的问题
 - (B2YBilibiliVideo *)syncFetchVideoInfo:(NSString *)bvid
                                   cookie:(NSString *)cookie
                                    error:(NSError **)error {
@@ -365,15 +366,23 @@ static const NSTimeInterval kSegmentFetchDelay = 0.3;
     NSMutableURLRequest *req = [self requestWithURL:[NSURL URLWithString:urlStr] cookie:cookie];
 
     __block NSData *responseData = nil;
+    // 使用 __block 变量捕获错误，避免直接在 block 中修改 autoreleasing out-parameter
+    __block NSError *blockError = nil;
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
     NSURLSessionDataTask *task = [self.session dataTaskWithRequest:req
         completionHandler:^(NSData *data, NSURLResponse *response, NSError *err) {
             responseData = data;
-            if (err && error) *error = err;
+            // 将错误赋值给 __block 变量，而不是直接赋值给输出参数
+            blockError = err;
             dispatch_semaphore_signal(sem);
         }];
     [task resume];
     dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));
+
+    // 在等待完成后再将错误赋值给输出参数，此时在当前线程的 autoreleasepool 中
+    if (error) {
+        *error = blockError;
+    }
 
     return [self parseVideoInfo:responseData bvid:bvid];
 }
