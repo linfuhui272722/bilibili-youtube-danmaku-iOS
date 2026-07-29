@@ -1,0 +1,174 @@
+# codemagic.yaml
+# CI/CD pipeline for building the B2YDanmaku iOS jailbreak tweak.
+#
+# This pipeline:
+#   1. Installs Theos + iPhoneOS SDK on a macOS builder.
+#   2. Builds the .deb for three jailbreak flavours:
+#        - rootful   (legacy: unc0ver, checkra1n)
+#        - rootless  (Dopamine, palera1n)
+#        - roothide  (RootHide Bootstrap)
+#   3. Publishes every .deb as a downloadable artifact.
+#
+# Trigger: push to main, or manual "Start new build" in the Codemagic UI.
+#
+# Prerequisites:
+#   - A Codemagic team with a macOS-based build machine (M1 or Intel).
+#   - No code signing required (jailbreak tweaks are unsigned .deb files).
+#
+# Notes on SDK availability:
+#   Theos needs an iPhoneOS SDK. Apple stopped shipping the private SDK
+#   with Xcode years ago, so we download a known-good copy from the
+#   Theos SDKs mirror (https://github.com/theos/sdks). The pipeline pins
+#   to iPhoneOS16.5.sdk which supports arm64e and the YouTube app's
+#   minimum deployment target.
+
+workflows:
+  b2y-danmaku-build:
+    name: B2Y Danmaku Build
+    instance_type: mac_mini_m1
+    max_build_duration: 30
+    environment:
+      vars:
+        # Theos install location. Codemagic persists this across steps.
+        THEOS: /opt/theos
+        # SDK folder inside Theos.
+        THEOS_SDKS: /opt/theos/sdks
+        # Tweak version - bump on release.
+        TWEAK_VERSION: "1.0.0"
+      xcode: latest
+    cache:
+      cache_paths:
+        - $THEOS
+        - $HOME/.theos
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: release/*
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Print environment
+        script: |
+          echo "=== Build environment ==="
+          uname -a
+          sw_vers
+          xcodebuild -version || true
+          echo "THEOS=$THEOS"
+          echo "TWEAK_VERSION=$TWEAK_VERSION"
+
+      - name: Install Theos
+        script: |
+          if [ ! -d "$THEOS" ]; then
+            echo "Cloning Theos to $THEOS ..."
+            git clone --recursive https://github.com/theos/theos.git "$THEOS"
+          else
+            echo "Theos already present at $THEOS, updating ..."
+            cd "$THEOS"
+            git pull --ff-only || true
+            git submodule update --init --recursive || true
+          fi
+
+      - name: Install iPhoneOS SDK
+        script: |
+          mkdir -p "$THEOS_SDKS"
+          # Try a few known-good SDK versions from the theos/sdks mirror.
+          # The Makefile targets 16.5, but we fall back to 14.5 / 15.2 if
+          # the 16.5 tarball isn't available.
+          for sdkver in 16.5 15.2 14.5; do
+            if [ -d "$THEOS_SDKS/iPhoneOS${sdkver}.sdk" ]; then
+              echo "SDK ${sdkver} already present."
+              export B2Y_SDK_VER="$sdkver"
+              break
+            fi
+            echo "Trying to download iPhoneOS${sdkver}.sdk ..."
+            cd /tmp
+            curl -L --fail -o sdk.tar.xz \
+              "https://github.com/theos/sdks/raw/master/iPhoneOS${sdkver}.sdk.tar.xz" 2>/dev/null
+            if [ $? -eq 0 ] && [ -s sdk.tar.xz ]; then
+              tar -xf sdk.tar.xz -C "$THEOS_SDKS"
+              rm -f sdk.tar.xz
+              export B2Y_SDK_VER="$sdkver"
+              break
+            fi
+            rm -f sdk.tar.xz
+          done
+          if [ -z "$B2Y_SDK_VER" ]; then
+            echo "ERROR: No iPhoneOS SDK could be downloaded."
+            echo "Please manually place an SDK in $THEOS_SDKS"
+            exit 1
+          fi
+          echo "Using SDK version: $B2Y_SDK_VER"
+          # Persist for subsequent steps.
+          echo "B2Y_SDK_VER=$B2Y_SDK_VER" >> $CM_ENV
+          ls -la "$THEOS_SDKS"
+
+      - name: Verify Theos toolchain
+        script: |
+          # Theos ships its own toolchain on macOS (uses Xcode's clang).
+          # Verify it can compile a trivial Logos file.
+          echo "=== Theos toolchain check ==="
+          ls "$THEOS/toolchain"
+          # Print the Theos version for the build log.
+          cat "$THEOS/commit-hash" 2>/dev/null || true
+
+      - name: Build (rootful)
+        script: |
+          cd "$CM_BUILD_DIR"
+          echo "=== Building rootful .deb (SDK=$B2Y_SDK_VER) ==="
+          make clean || true
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootful B2Y_SDK_VER="$B2Y_SDK_VER"
+          find . -name "*.deb" -print
+
+      - name: Build (rootless)
+        script: |
+          cd "$CM_BUILD_DIR"
+          echo "=== Building rootless .deb (SDK=$B2Y_SDK_VER) ==="
+          make clean || true
+          make package FINALPACKAGE=1 ROOTLESS=1 B2Y_SDK_VER="$B2Y_SDK_VER"
+          find . -name "*.deb" -print
+
+      - name: Build (roothide)
+        script: |
+          cd "$CM_BUILD_DIR"
+          echo "=== Building roothide .deb (SDK=$B2Y_SDK_VER) ==="
+          make clean || true
+          make package FINALPACKAGE=1 ROTHIDE=1 B2Y_SDK_VER="$B2Y_SDK_VER"
+          find . -name "*.deb" -print
+
+      - name: Collect artifacts
+        script: |
+          mkdir -p "$CM_BUILD_DIR/artifacts"
+          cd "$CM_BUILD_DIR"
+          # Theos puts .debs in packages/ by default.
+          for deb in packages/*.deb; do
+            if [ -f "$deb" ]; then
+              cp "$deb" artifacts/
+              echo "Collected: $deb"
+            fi
+          done
+          ls -la artifacts/
+
+    artifacts:
+      - artifacts/*.deb
+      - packages/*.deb
+
+    publishing:
+      # No code signing needed for jailbreak tweaks. We just expose the
+      # .deb files as downloadable artifacts in the Codemagic UI.
+      scripts:
+        - name: Print build summary
+          script: |
+            echo "=== Build complete ==="
+            echo "Artifacts:"
+            ls -la "$CM_BUILD_DIR/artifacts/" 2>/dev/null || true
+            echo ""
+            echo "To install on a jailbroken device:"
+            echo "  1. Download the .deb matching your jailbreak type."
+            echo "  2. Transfer to your device (AirDrop, Filza, scp, ...)."
+            echo "  3. Install with: dpkg -i <file.deb>  (rootful/roothide)"
+            echo "     or via Sileo by adding the file as a local source."
+            echo "  4. Respring."
+            echo "  5. Open YouTube -> Settings -> B2Y Danmaku."

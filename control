@@ -1,0 +1,15 @@
+Package: com.ahaduoduoduo.b2ydanmaku
+Name: B2Y Danmaku
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm64
+Description: Sync Bilibili danmaku onto the YouTube iOS app.
+ Long-standing UP-zhugong (creators) cross-post to both Bilibili and YouTube.
+ This tweak fetches the Bilibili web danmaku stream for the matching video
+ and overlays it on top of the YouTube player, so you get the Bilibili
+ danmaku atmosphere while watching the higher-bitrate YouTube upload.
+Maintainer: ahaduoduoduo
+Author: ahaduoduoduo
+Section: Tweaks (YouTube)
+Homepage: https://github.com/ahaduoduoduo/bilibili-youtube-danmaku
+Icon: https://raw.githubusercontent.com/ahaduoduoduo/bilibili-youtube-danmaku/main/public/icon-128.png
