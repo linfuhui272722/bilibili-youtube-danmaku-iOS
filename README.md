@@ -47,7 +47,7 @@ This is the **iOS jailbreak** port. It hooks the native YouTube app (`com.google
 
 5. **Rendering** — A `CADisplayLink` drives a 60 FPS loop on `B2YDanmakuOverlayView`. Danmaku are emitted when the player's `currentMediaTime` crosses their `progress`. Scrolling danmaku claim a horizontal track until their tail clears the right edge; top/bottom danmaku claim a track for 4 seconds.
 
-## Features
+## Features（本是如此，但不能使用）
 
 - ✅ Auto-match by title (Levenshtein similarity, configurable threshold)
 - ✅ Manual BV id mode (for when auto-match fails)
@@ -66,13 +66,6 @@ This is the **iOS jailbreak** port. It hooks the native YouTube app (`com.google
 - [Theos](https://theos.dev/docs/installation) (`git clone --recursive https://github.com/theos/theos.git`)
 - iPhoneOS SDK 16.5 (downloaded automatically by the CI pipeline)
 - Xcode command-line tools (for `clang`)
-
-### Runtime
-
-- A jailbroken iOS device (arm64 / arm64e)
-- YouTube app installed (tested on YouTube 19.x)
-- A jailbreak package manager (Sileo / Zebra / Filza)
-- Internet access (to reach `api.bilibili.com`)
 
 ## Building locally
 
