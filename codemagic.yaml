@@ -64,7 +64,7 @@ workflows:
           # Ensure THEOS is set for this script context
           export THEOS="$HOME/theos"
           
-          if [ ! -d "$THEOS" ]; then
+          if  ! -d "$THEOS" ; then
             echo "Cloning Theos to $THEOS ..."
             git clone --recursive https://github.com/theos/theos.git "$THEOS"
           else
@@ -78,7 +78,7 @@ workflows:
         script: |
           #!/bin/bash
           set -e
-          echo "=== [3/6] 准备 iPhone SDK ==="
+          echo "=== 3/6 准备 iPhone SDK ==="
 
           # Explicitly set THEOS path to match environment vars
           export THEOS="$HOME/theos"
@@ -91,7 +91,7 @@ workflows:
           
           mkdir -p "$SDK_DIR"
 
-          if [ -d "$SDK_DIR/$SDK_NAME" ]; then
+          if  -d "$SDK_DIR/$SDK_NAME" ; then
             echo "✅ SDK $SDK_NAME 已存在，跳过下载。"
             rm -rf "$TEMP_DIR"
             exit 0
@@ -117,6 +117,33 @@ workflows:
           echo "=== Theos toolchain check ==="
           ls "$THEOS/toolchain"
           cat "$THEOS/commit-hash" 2>/dev/null || true
+
+      - name: Install ldid
+        script: |
+          echo "=== Installing ldid for code signing ==="
+          # Check if Homebrew is installed
+          if ! command -v brew &> /dev/null; then
+            echo "Homebrew not found, installing..."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          else
+            echo "Homebrew is already installed"
+          fi
+          
+          # Update Homebrew and install ldid
+          echo "Updating Homebrew..."
+          brew update
+          
+          echo "Installing ldid..."
+          brew install ldid
+          
+          # Verify installation
+          if command -v ldid &> /dev/null; then
+            echo "✅ ldid installed successfully:"
+            ldid -v
+          else
+            echo "❌ Failed to install ldid"
+            exit 1
+          fi
 
       - name: Build (rootful)
         script: |
@@ -150,7 +177,7 @@ workflows:
           mkdir -p "$CM_BUILD_DIR/artifacts"
           cd "$CM_BUILD_DIR"
           for deb in packages/*.deb; do
-            if [ -f "$deb" ]; then
+            if  -f "$deb" ; then
               cp "$deb" artifacts/
               echo "Collected: $deb"
             fi
