@@ -18,6 +18,25 @@
 #import "B2YDanmakuModel.h"
 #import "B2YSettings.h"
 
+// MARK: - Helper Functions
+// 用于修复编译错误的辅助函数定义
+
+static NSInteger b2yInt(NSString *key) {
+    return [[B2YSettings shared] integerForKey:key];
+}
+
+static BOOL b2yBool(NSString *key) {
+    return [[B2YSettings shared] boolForKey:key];
+}
+
+static float b2yFloat(NSString *key) {
+    return [[B2YSettings shared] floatForKey:key];
+}
+
+static NSString * _Nullable b2yString(NSString *key) {
+    return [[B2YSettings shared] stringForKey:key];
+}
+
 // Fixed display duration for top/bottom danmaku (seconds).
 static const NSTimeInterval kFixedDanmakuDuration = 4.0;
 // Maximum labels we keep alive simultaneously (memory cap).
