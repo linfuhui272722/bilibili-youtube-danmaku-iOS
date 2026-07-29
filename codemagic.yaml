@@ -70,35 +70,37 @@ workflows:
             git submodule update --init --recursive || true
           fi
 
-      - name: Install iPhoneOS SDK
+      - name: Prepare iPhone SDK
         script: |
-          mkdir -p "$THEOS_SDKS"
-          for sdkver in 16.5 15.2 14.5; do
-            if [ -d "$THEOS_SDKS/iPhoneOS${sdkver}.sdk" ]; then
-              echo "SDK ${sdkver} already present."
-              export B2Y_SDK_VER="$sdkver"
-              break
-            fi
-            echo "Trying to download iPhoneOS${sdkver}.sdk ..."
-            cd /tmp
-            curl -L --fail -o sdk.tar.xz \
-              "https://github.com/theos/sdks/raw/master/iPhoneOS${sdkver}.sdk.tar.xz" 2>/dev/null
-            if [ $? -eq 0 ] && [ -s sdk.tar.xz ]; then
-              tar -xf sdk.tar.xz -C "$THEOS_SDKS"
-              rm -f sdk.tar.xz
-              export B2Y_SDK_VER="$sdkver"
-              break
-            fi
-            rm -f sdk.tar.xz
-          done
-          if [ -z "$B2Y_SDK_VER" ]; then
-            echo "ERROR: No iPhoneOS SDK could be downloaded."
-            echo "Please manually place an SDK in $THEOS_SDKS"
-            exit 1
+          #!/bin/bash
+          set -e
+          echo "=== [3/6] 准备 iPhone SDK ==="
+
+          export THEOS=$THEOS_PATH
+          SDK_DIR="$THEOS/sdks"
+          REQUIRED_SDK_VERSION="16.5"
+          SDK_NAME="iPhoneOS${REQUIRED_SDK_VERSION}.sdk"
+          TEMP_DIR=$(mktemp -d)
+
+          mkdir -p "$SDK_DIR"
+
+          if [ -d "$SDK_DIR/$SDK_NAME" ]; then
+            echo "✅ SDK $SDK_NAME 已存在，跳过下载。"
+            rm -rf "$TEMP_DIR"
+            exit 0
           fi
-          echo "Using SDK version: $B2Y_SDK_VER"
-          echo "B2Y_SDK_VER=$B2Y_SDK_VER" >> $CM_ENV
-          ls -la "$THEOS_SDKS"
+
+          echo "📥 下载 SDK..."
+          if git clone --depth 1 https://github.com/theos/sdks.git "$TEMP_DIR/sdks"; then
+             cp -R "$TEMP_DIR/sdks/$SDK_NAME" "$SDK_DIR/" && echo "✅ SDK 复制完成"
+          else
+             echo "❌ 克隆失败"
+             rm -rf "$TEMP_DIR"
+             exit 1
+          fi
+
+          rm -rf "$TEMP_DIR"
+          ls -la "$SDK_DIR/"
 
       - name: Verify Theos toolchain
         script: |
