@@ -44,8 +44,7 @@
     [clean replaceOccurrencesOfString:@"\n" withString:@" "
                               options:0 range:NSMakeRange(0, clean.length)];
     [clean replaceOccurrencesOfString:@"  " withString:@" "
-                              options:0 range:NSMakeRange(0, clean.length)
-                                 whileMatching:NO];
+                              options:0 range:NSMakeRange(0, clean.length)];
     NSString *trimmed = [clean stringByTrimmingCharactersInSet:
         [NSCharacterSet whitespaceCharacterSet]];
 
