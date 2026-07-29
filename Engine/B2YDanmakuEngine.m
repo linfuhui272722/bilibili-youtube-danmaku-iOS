@@ -9,6 +9,34 @@
 #import "B2YSettings.h"
 #import "B2YVideoMatcher.h"
 
+// MARK: - Helper Functions (Fix for undeclared function errors)
+// 假设 B2YSettings 封装了 HBPreferences 或类似机制，暴露了通用的 Key-Value 读取方法。
+// 如果 B2YSettings 没有 integerForKey/boolForKey，你可能需要实现它们。
+
+static NSInteger b2yInt(NSString *key) {
+    id val = [[B2YSettings shared] objectForKey:key];
+    if ([val respondsToSelector:@selector(integerValue)]) {
+        return [val integerValue];
+    }
+    return 0;
+}
+
+static BOOL b2yBool(NSString *key) {
+    id val = [[B2YSettings shared] objectForKey:key];
+    if ([val respondsToSelector:@selector(boolValue)]) {
+        return [val boolValue];
+    }
+    return NO;
+}
+
+static NSString * _Nullable b2yString(NSString *key) {
+    id val = [[B2YSettings shared] objectForKey:key];
+    if ([val isKindOfClass:[NSString class]]) {
+        return val;
+    }
+    return nil;
+}
+
 @interface B2YDanmakuEngine ()
 @property (nonatomic, copy) NSString *currentVideoID;
 @property (nonatomic, strong) B2YBilibiliVideo *matchedVideo;
