@@ -28,17 +28,17 @@ workflows:
     max_build_duration: 30
     environment:
       vars:
-        # Theos install location - changed to user home directory to avoid permission issues.
+        # Theos install location - using user home directory to avoid permission issues.
         THEOS: $HOME/theos
-        # SDK folder inside Theos.
-        THEOS_SDKS: $HOME/theos/sdks
+        # Target iOS SDK Version (consistent across download and build steps)
+        B2Y_SDK_VER: "16.5"
         # Tweak version - bump on release.
         TWEAK_VERSION: "1.0.0"
       xcode: latest
     cache:
       cache_paths:
-        - $THEOS
-        - $HOME/.theos
+        # Cache the entire Theos directory, including downloaded SDKs
+        - $HOME/theos
     triggering:
       events:
         - push
@@ -56,10 +56,14 @@ workflows:
           sw_vers
           xcodebuild -version || true
           echo "THEOS=$THEOS"
+          echo "B2Y_SDK_VER=$B2Y_SDK_VER"
           echo "TWEAK_VERSION=$TWEAK_VERSION"
 
       - name: Install Theos
         script: |
+          # Ensure THEOS is set for this script context
+          export THEOS="$HOME/theos"
+          
           if [ ! -d "$THEOS" ]; then
             echo "Cloning Theos to $THEOS ..."
             git clone --recursive https://github.com/theos/theos.git "$THEOS"
@@ -76,12 +80,15 @@ workflows:
           set -e
           echo "=== [3/6] 准备 iPhone SDK ==="
 
-          export THEOS=$THEOS_PATH
+          # Explicitly set THEOS path to match environment vars
+          export THEOS="$HOME/theos"
           SDK_DIR="$THEOS/sdks"
-          REQUIRED_SDK_VERSION="16.5"
-          SDK_NAME="iPhoneOS${REQUIRED_SDK_VERSION}.sdk"
+          SDK_NAME="iPhoneOS${B2Y_SDK_VER}.sdk"
           TEMP_DIR=$(mktemp -d)
 
+          echo "📂 Theos 路径: $THEOS"
+          echo "📂 目标 SDK: $SDK_NAME"
+          
           mkdir -p "$SDK_DIR"
 
           if [ -d "$SDK_DIR/$SDK_NAME" ]; then
@@ -90,11 +97,13 @@ workflows:
             exit 0
           fi
 
-          echo "📥 下载 SDK..."
+          echo "📥 正在从 Github 下载 SDK..."
+          # Using git clone to fetch the specific SDK from theos/sdks mirror
           if git clone --depth 1 https://github.com/theos/sdks.git "$TEMP_DIR/sdks"; then
+             echo "📥 正在复制 SDK 到 $SDK_DIR ..."
              cp -R "$TEMP_DIR/sdks/$SDK_NAME" "$SDK_DIR/" && echo "✅ SDK 复制完成"
           else
-             echo "❌ 克隆失败"
+             echo "❌ 克隆 SDK 仓库失败"
              rm -rf "$TEMP_DIR"
              exit 1
           fi
@@ -104,12 +113,14 @@ workflows:
 
       - name: Verify Theos toolchain
         script: |
+          export THEOS="$HOME/theos"
           echo "=== Theos toolchain check ==="
           ls "$THEOS/toolchain"
           cat "$THEOS/commit-hash" 2>/dev/null || true
 
       - name: Build (rootful)
         script: |
+          export THEOS="$HOME/theos"
           cd "$CM_BUILD_DIR"
           echo "=== Building rootful .deb (SDK=$B2Y_SDK_VER) ==="
           make clean || true
@@ -118,6 +129,7 @@ workflows:
 
       - name: Build (rootless)
         script: |
+          export THEOS="$HOME/theos"
           cd "$CM_BUILD_DIR"
           echo "=== Building rootless .deb (SDK=$B2Y_SDK_VER) ==="
           make clean || true
@@ -126,6 +138,7 @@ workflows:
 
       - name: Build (roothide)
         script: |
+          export THEOS="$HOME/theos"
           cd "$CM_BUILD_DIR"
           echo "=== Building roothide .deb (SDK=$B2Y_SDK_VER) ==="
           make clean || true
